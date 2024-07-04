@@ -1,83 +1,75 @@
 const axios = require('axios');
-require('dotenv').config();  // Load environment variables from a .env file
+require('dotenv').config();  // Загрузка переменных среды из файла .env
 const TelegramBot = require('node-telegram-bot-api');
 
-// Telegram bot token (replace it with your own token)
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+// Токен бота в Telegram (замените его своим собственным токеном)
+const TELEGRAM_BOT_TOKEN = "Ваш Token";
 
-// API URL
-const API_URL = process.env.API_URL;
+// URL API
+const API_URL = "Ваш Url Flowise";
 
-// Function to make the query
+// Функция для выполнения запроса
 async function query(data) {
     try {
         const response = await axios.post(API_URL, data, {
             headers: {
-                Authorization: `Bearer ${process.env.API_TOKEN}`,
+                'Authorization': `Bearer Ваш API Flowise`,
                 'Content-Type': 'application/json',
             },
         });
         return response.data;
     } catch (error) {
-        console.error('Error in the query:', error.message);
+        console.error('Ошибка в запросе:', error.message);
         throw error;
     }
 }
 
-// Function to handle Telegram messages
+// Функция для обработки сообщений в Telegram
 async function handleTelegramMessage(message) {
     const chatId = message.chat.id;
     const text = message.text;
 
-    try {
-        // Log for incoming message
-        console.log(`Incoming message: ${text}`);
+    // Игнорируем команду /start в обработчике сообщений
+    if (text === '/start') {
+        return;
+    }
 
-        // Make the query with the user's message
+    try {
+        // Логирование входящего сообщения
+        console.log(`Входящее сообщение: ${text}`);
+
+        // Выполнение запроса с сообщением пользователя
         const result = await query({ question: text });
 
-        // Extract the text from the JSON response
-        const responseText = result.text || 'Could not retrieve response text';
-        const escapedResponseText = responseText
-	    .replace(/-/g, '\\-')
-	    .replace(/[\.|!|#|(|)|\{|\}|=|_|\+]/g, '\\$&')
-	    .replace(/\*\*/g, '');
+        // Извлечение текста из JSON-ответа
+        const responseText = result.text || 'Не удалось получить текст ответа';
 
-        // Log for outgoing message
-        console.log(`Response: ${escapedResponseText}`);
+        // Логирование исходящего сообщения
+        console.log(`Ответ: ${responseText}`);
 
-        // Send the response to the Telegram chat
-        await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-            chat_id: chatId,
-            text: escapedResponseText,
-            parse_mode: 'MarkdownV2',
-        });
-        console.log(`Sent response to Telegram chat ${chatId}`);
+        // Отправка ответа в чат Telegram
+        await bot.sendMessage(chatId, responseText);
     } catch (error) {
-        // Handle errors
-        console.error('Error handling Telegram message:', error);
-        console.error('Error details:', error.response? error.response.data : null);
-
-        // Send a fallback message without formatting
-        try {
-            await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                chat_id: chatId,
-                text: 'Sorry, there was an error processing your message. Please try again.',
-            });
-        } catch (fallbackError) {
-            console.error('Error sending fallback message:', fallbackError);
-        }
+        console.error('Ошибка при обработке сообщения в Telegram:', error.message);
+        await bot.sendMessage(chatId, 'Произошла ошибка при обработке вашего запроса.');
     }
 }
 
-// Configure the Telegram bot
+
+// Конфигурация телеграм-бота
 const bot = new TelegramBot(TELEGRAM_BOT_TOKEN, { polling: true });
 
-// Handle Telegram messages
+// Обработчик сообщений в Telegram
 bot.on('message', handleTelegramMessage);
 
-// Port to listen on (uses the port defined by the PORT environment variable or defaults to port 3000)
+// Обработчик команды /start
+bot.onText(/\/start/, (msg) => {
+    const chatId = msg.chat.id;
+    bot.sendMessage(chatId, 'Привет!');
+});
+
+// Порт для прослушивания (используется порт, определенный переменной среды PORT, или по умолчанию порт 3000)
 const port = process.env.PORT || 3000;
 
-// Startup message
-console.log(`Telegram bot started. Listening on port ${port}...`);
+// Сообщение о запуске
+console.log(`Телеграм-бот запущен. Прослушиваем порт ${port}...`);
